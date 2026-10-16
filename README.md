@@ -1,45 +1,33 @@
 # Business-Critical Contact Database: Multi-AZ RDS Migration
 
-Migrating a single-point-of-failure database off an application server and onto
-a managed, highly available Amazon RDS platform — with zero data loss on failover
-and no dedicated DBA required to operate it.
+Migrating a single-point-of-failure database off an application server and onto a managed, highly available Amazon RDS platform — with zero data loss on failover and no dedicated DBA required to operate it.
 
 ---
 
 ## Context
 
-This is a scenario-based case study built on a hands-on AWS build. The business
-brief, requirements, and constraints below represent a realistic engagement; the
-architecture, configuration, and verification are from the actual deployment.
+This is a scenario-based case study built on a hands-on AWS build. The business brief, requirements, and constraints below represent a realistic engagement; the architecture, configuration, and verification are from the actual deployment.
 
 ---
 
 ## The Business Problem
 
-A professional services firm runs an internal address book application that staff
-use daily to reach clients. The application is business-critical — if it is
-unavailable, client-facing work stops.
+A professional services firm runs an internal address book application that staff use daily to reach clients. The application is business-critical — if it is unavailable, client-facing work stops.
 
 The existing setup:
 
-- A single EC2 instance running both the web application and a locally installed
-  MySQL server
+- A single EC2 instance running both the web application and a locally installed MySQL server
 - Single Availability Zone
 - Manual, ad-hoc backups
 - Manual OS and database patching
 
 Three risks were raised by the business:
 
-1. **Single point of failure.** If the instance or its Availability Zone fails,
-   the contact database is offline with no defined recovery path and no defined
-   recovery time.
-2. **Data loss exposure.** Backups are infrequent and untested. There is no clear
-   answer to "how much data would we lose?"
-3. **Operational burden.** Patching, backups, and failover are manual and depend
-   on one person. This is a bus-factor risk as much as a technical one.
+1. **Single point of failure.** If the instance or its Availability Zone fails, the contact database is offline with no defined recovery path and no defined recovery time.
+2. **Data loss exposure.** Backups are infrequent and untested. There is no clear answer to "how much data would we lose?"
+3. **Operational burden.** Patching, backups, and failover are manual and depend on one person. This is a bus-factor risk as much as a technical one.
 
-The ask was not "set up RDS." The ask was: **make the contact database survive
-infrastructure failure without hiring a DBA to run it.**
+The ask was not "set up RDS." The ask was: **make the contact database survive infrastructure failure without hiring a DBA to run it.**
 
 ---
 
@@ -72,7 +60,7 @@ infrastructure failure without hiring a DBA to run it.**
 
 ## Architecture
 
-![Architecture](screenshots/01-architecture.png)
+![Architecture](screenshots/01-architecture.jpg)
 
 **Flow:**
 
@@ -83,15 +71,13 @@ infrastructure failure without hiring a DBA to run it.**
 5. Synchronous replication keeps the standby current with the primary
 6. Both database subnets have no route to the internet
 
-The two Availability Zones are the core of the design: primary and standby never
-share a failure domain.
+The two Availability Zones are the core of the design: primary and standby never share a failure domain.
 
 ---
 
 ## Design Decisions
 
-Each decision below was made against at least one rejected alternative. The
-reasoning is the substance of the design, not the configuration.
+Each decision below was made against at least one rejected alternative. The reasoning is the substance of the design, not the configuration.
 
 | Decision | Why | Alternative rejected | Trade-off accepted |
 | :--- | :--- | :--- | :--- |
@@ -107,8 +93,7 @@ reasoning is the substance of the design, not the configuration.
 
 ## Failure Modes & Recovery Behaviour
 
-This is the part that matters to the business — not that the database is
-"highly available," but what actually happens on the day something breaks.
+This is the part that matters to the business — not that the database is "highly available," but what actually happens on the day something breaks.
 
 | Failure | What happens | Recovery | Manual action required |
 | :--- | :--- | :--- | :--- |
@@ -118,10 +103,7 @@ This is the part that matters to the business — not that the database is
 | Application server failure | Web tier is replaceable independently; database unaffected | Rebuild web instance | Reattach Web Security Group |
 | Accidental data deletion | Covered by automated backups and point-in-time recovery | Restore to a point in time | Yes — deliberate restore |
 
-**Connection behaviour during failover:** the RDS endpoint is a DNS name, not an
-IP. On failover, the CNAME is repointed to the promoted instance. Applications
-that reconnect on connection loss recover without configuration change. This is
-why the application uses the endpoint and never a resolved IP.
+**Connection behaviour during failover:** the RDS endpoint is a DNS name, not an IP. On failover, the CNAME is repointed to the promoted instance. Applications that reconnect on connection loss recover without configuration change. This is why the application uses the endpoint and never a resolved IP.
 
 ---
 
@@ -135,23 +117,17 @@ Defence in depth, in the order a connection must pass:
 4. **Authentication** — database credentials required at the engine layer
 5. **Encryption at rest** — storage encrypted with an AWS managed KMS key
 
-No step assumes the previous one held. The security group is not the only control;
-it is one of five.
+No step assumes the previous one held. The security group is not the only control; it is one of five.
 
-![DB Security Group](screenshots/06-db-security-group.png)
+![DB Security Group](screenshots/06-db-security-group.jpg)
 
 ---
 
 ## Cost Position
 
-Multi-AZ approximately doubles the database instance cost — the firm pays for a
-standby that serves no traffic.
+Multi-AZ approximately doubles the database instance cost — the firm pays for a standby that serves no traffic.
 
-The comparison that justified it was not "RDS vs EC2." It was **the annual cost
-of the standby against the cost of one lost business day.** For a firm whose
-staff cannot reach clients without this system, a single avoided outage pays for
-the redundancy. The decision was presented to the business in those terms, not as
-an infrastructure preference.
+The comparison that justified it was not "RDS vs EC2." It was **the annual cost of the standby against the cost of one lost business day.** For a firm whose staff cannot reach clients without this system, a single avoided outage pays for the redundancy. The decision was presented to the business in those terms, not as an infrastructure preference.
 
 ---
 
@@ -159,14 +135,14 @@ an infrastructure preference.
 
 | | |
 | :--- | :--- |
-| Architecture | ![Architecture](screenshots/01-architecture.png) |
-| DB Subnet Group (two AZs) | ![DB Subnet Group](screenshots/02-db-subnet-group.png) |
-| RDS configuration | ![RDS Configuration](screenshots/03-rds-configuration.png) |
-| Instance available, Multi-AZ | ![RDS Available](screenshots/04-rds-available.png) |
-| Connectivity and endpoint | ![RDS Endpoint](screenshots/05-rds-endpoint.png) |
-| DB Security Group and replication | ![DB Security Group](screenshots/06-db-security-group.png) |
-| Web Security Group | ![Web Security Group](screenshots/07-web-security-group.png) |
-| Application working against RDS | ![Address Book Working](screenshots/08-address-book-working.png) |
+| Architecture | ![Architecture](screenshots/01-architecture.jpg) |
+| DB Subnet Group (two AZs) | ![DB Subnet Group](screenshots/02-db-subnet-group.jpg) |
+| RDS configuration | ![RDS Configuration](screenshots/03-rds-configuration.jpg) |
+| Instance available, Multi-AZ | ![RDS Available](screenshots/04-rds-available.jpg) |
+| Connectivity and endpoint | ![RDS Endpoint](screenshots/05-rds-endpoint.jpg) |
+| DB Security Group and replication | ![DB Security Group](screenshots/06-db-security-group.jpg) |
+| Web Security Group | ![Web Security Group](screenshots/07-web-security-group.jpg) |
+| Application working against RDS | ![Address Book Working](screenshots/08-address-book-working.jpg) |
 
 ---
 
@@ -194,37 +170,21 @@ Stated deliberately — a design without known limits is an unexamined design.
 
 **Known limitations of the current build:**
 
-- **Failover has not been load-tested.** The 60–120 second figure is AWS's
-  documented behaviour, not a number measured against this application's
-  connection handling. Next step would be a deliberate failover during synthetic
-  load to confirm the application reconnects cleanly and to measure real RTO.
-- **No connection pooling or retry logic in the application.** The app relies on
-  the driver reconnecting. A production build would add explicit retry with
-  backoff to make failover invisible rather than merely survivable.
-- **Single region.** Multi-AZ protects against AZ failure, not regional failure
-  or a bad deployment. Cross-region disaster recovery is out of scope here but
-  would be the next tier for a stricter RPO/RTO.
-- **No monitoring or alerting configured.** There is no CloudWatch alarm on
-  failover events, replication lag, or storage headroom. Availability you cannot
-  observe is availability you cannot prove.
-- **Credentials are not in a secrets manager.** Moving to AWS Secrets Manager
-  with automatic rotation would be the next security iteration.
-- **Backup retention is default.** Retention period and restore procedures should
-  be defined against the RPO and actually tested, not assumed.
+- **Failover has not been load-tested.** The 60–120 second figure is AWS's documented behaviour, not a number measured against this application's connection handling. Next step would be a deliberate failover during synthetic load to confirm the application reconnects cleanly and to measure real RTO.
+- **No connection pooling or retry logic in the application.** The app relies on the driver reconnecting. A production build would add explicit retry with backoff to make failover invisible rather than merely survivable.
+- **Single region.** Multi-AZ protects against AZ failure, not regional failure or a bad deployment. Cross-region disaster recovery is out of scope here but would be the next tier for a stricter RPO/RTO.
+- **No monitoring or alerting configured.** There is no CloudWatch alarm on failover events, replication lag, or storage headroom. Availability you cannot observe is availability you cannot prove.
+- **Credentials are not in a secrets manager.** Moving to AWS Secrets Manager with automatic rotation would be the next security iteration.
+- **Backup retention is default.** Retention period and restore procedures should be defined against the RPO and actually tested, not assumed.
 
-**What I would do differently at larger scale:** introduce Read Replicas for read
-offload once the workload justifies it, add a multi-region DR strategy if the RPO
-tightens, and formalise the security group chaining as an organisational standard
-rather than a per-deployment choice.
+**What I would do differently at larger scale:** introduce Read Replicas for read offload once the workload justifies it, add a multi-region DR strategy if the RPO tightens, and formalise the security group chaining as an organisational standard rather than a per-deployment choice.
 
 ---
 
 ## What This Demonstrates
 
-- Translating a business risk ("we can't afford to be down") into specific,
-  measurable requirements (RTO < 2 min, RPO = 0)
-- Selecting between Multi-AZ and Read Replicas on the basis of the actual
-  requirement rather than the more familiar option
+- Translating a business risk ("we can't afford to be down") into specific, measurable requirements (RTO < 2 min, RPO = 0)
+- Selecting between Multi-AZ and Read Replicas on the basis of the actual requirement rather than the more familiar option
 - Applying defence-in-depth rather than a single control
 - Reasoning about failure modes and recovery behaviour, not just steady state
 - Justifying cost in business terms
